@@ -269,6 +269,29 @@ describe('init', () => {
     mockExit.mockClear();
   });
 
+  it.each([
+    { self: true },
+    { repo: '.' },
+    { repoPositional: '.' },
+  ])('rejects --scope user in single-repo mode without writing config: %o', async (target) => {
+    const { log } = await import('../utils/logger.js');
+    const { writeFile, ensureDir } = await import('../utils/fs.js');
+    const { saveLocalConfigForScope } = await import('../config.js');
+
+    await init({ ...target, scope: 'user' });
+
+    expect(mockExit).toHaveBeenCalledWith(1);
+    expect(log.error).toHaveBeenCalledWith(expect.stringContaining('--scope user'));
+    expect(log.error).toHaveBeenCalledWith(expect.stringContaining('project scope'));
+    expect(log.error).toHaveBeenCalledWith(expect.stringContaining('~/.teamai/config.yaml'));
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(ensureDir).not.toHaveBeenCalled();
+    expect(fse.writeFile).not.toHaveBeenCalled();
+    expect(saveLocalConfigForScope).not.toHaveBeenCalled();
+    expect(mockGit.raw).not.toHaveBeenCalled();
+    expect(mockGfRepoClone).not.toHaveBeenCalled();
+  });
+
   it('rejects user-scope inheritance before provider or repository side effects', async () => {
     await init({
       repo: 'https://git.woa.com/HyperAI/teamai-test.git',
@@ -1148,7 +1171,12 @@ describe('init', () => {
 
     // Loading the config bootstraps a clone whose teamai.yaml says `mode: self`
     // (#852), so a dry run must stop before it (#900).
-    it.each([{ repo: '.' }, { self: true }])('refuses --dry-run before loading any config: %o', async (target) => {
+    it.each([
+      { repo: '.' },
+      { self: true },
+      { repo: '.', scope: 'project' },
+      { self: true, scope: 'project' },
+    ])('refuses --dry-run before loading any config: %o', async (target) => {
       pathExistsFn = (p: string) => p.endsWith(`${path.sep}.git`) || p.endsWith('/.git');
       vi.mocked(loadLocalConfigForScope).mockClear();
       const { log } = await import('../utils/logger.js');
