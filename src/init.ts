@@ -1663,6 +1663,11 @@ export async function init(options: GlobalOptions & {
   // the teamai-reports orphan branch. No separate team repo is cloned.
   const repoArg = (options.repoPositional ?? options.repo ?? '').trim();
   if (options.self || repoArg === '.') {
+    if (options.scope === 'user') {
+      log.error('--scope user is not supported with single-repo mode (init . / --self). Single-repo mode installs at project scope; to use user scope today, create ~/.teamai/config.yaml manually.');
+      process.exit(1);
+      return;
+    }
     return initSelfRepo({ ...options, provider: forcedProvider });
   }
   const requestedAgents = normalizeAgentList(options.agent);
